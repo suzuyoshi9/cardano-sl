@@ -75,9 +75,9 @@ actionWithWallet sscParams nodeParams wArgs@WalletArgs {..} = do
             flushWalletStorage
             logInfo "Resyncing wallets with blockchain..."
             syncWallets
-    runNodeWithInit init nr =
+    runNodeWithInit initial nr =
         let (ActionSpec f, outs) = runNode nr allPlugins
-         in (ActionSpec $ \v s -> init >> f v s, outs)
+         in (ActionSpec $ \v s -> initial >> f v s, outs)
     convPlugins = (, mempty) . map (\act -> ActionSpec $ \__vI __sA -> act)
     syncWallets :: WalletWebMode ()
     syncWallets = do

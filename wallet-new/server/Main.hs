@@ -66,9 +66,9 @@ actionWithWallet sscParams nodeParams wArgs@WalletBackendParams {..} =
             logInfo "Resyncing wallets with blockchain..."
             syncWallets
 
-    runNodeWithInit init nr =
+    runNodeWithInit initial nr =
         let (ActionSpec f, outs) = runNode nr plugins
-         in (ActionSpec $ \v s -> init >> f v s, outs)
+         in (ActionSpec $ \v s -> initial >> f v s, outs)
 
     syncWallets :: WalletWebMode ()
     syncWallets = do
@@ -123,13 +123,13 @@ generateSwaggerDocumentation :: ( MonadIO m
                                 ) => m ()
 generateSwaggerDocumentation = liftIO $ do
     BL8.writeFile "wallet-new/spec/swagger.json" (encodePretty Swagger.api)
-    putText "Swagger API written on disk."
+    putTextLn "Swagger API written on disk."
 
 -- | The main entrypoint for the Wallet.
 main :: IO ()
 main = withCompileInfo $(retrieveCompileTimeInfo) $ do
   cfg <- getWalletNodeOptions
-  putText "Wallet is starting..."
+  putTextLn "Wallet is starting..."
   let loggingParams = CLI.loggingParams loggerName (wsoNodeArgs cfg)
   loggerBracket loggingParams . runProduction $ do
     logInfo "[Attention] Software is built with the wallet backend"

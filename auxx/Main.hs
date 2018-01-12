@@ -3,10 +3,10 @@ module Main
        ) where
 
 import           Universum
-import           Unsafe (unsafeFromJust)
 
 import           Control.Exception.Safe (handle)
 import           Data.Constraint (Dict (..))
+import           Data.Maybe (fromJust)
 import           Formatting (sformat, shown, (%))
 import           Mockable (Production, runProduction)
 import qualified Network.Transport.TCP as TCP (TCPAddr (..))
@@ -79,7 +79,7 @@ runNodeWithSinglePlugin nr (plugin, plOuts) =
 action :: HasCompileInfo => AuxxOptions -> Either WithCommandAction Text -> Production ()
 action opts@AuxxOptions {..} command = do
     let runWithoutNode = rawExec Nothing opts Nothing command
-    printAction <- either getPrintAction (const $ return putText) command
+    printAction <- either getPrintAction (const $ return putTextLn) command
 
     let configToDict :: HasConfigurations => Production (Maybe (Dict HasConfigurations))
         configToDict = return (Just Dict)
@@ -111,7 +111,7 @@ action opts@AuxxOptions {..} command = do
                           , acCmdCtx = cmdCtx
                           , acTempDbUsed = tempDbUsed }
                   lift $ runReaderT auxxAction auxxContext
-          let vssSK = unsafeFromJust $ npUserSecret nodeParams ^. usVss
+          let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
           let sscParams = CLI.gtSscParams cArgs vssSK (npBehaviorConfig nodeParams)
           bracketNodeResources nodeParams sscParams txpGlobalSettings initNodeDBs $ \nr ->
               runRealBasedMode toRealMode realModeToAuxx nr $

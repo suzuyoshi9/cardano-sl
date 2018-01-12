@@ -45,7 +45,7 @@ import           Control.Monad.Except (ExceptT, MonadError (throwError), runExce
 import           Data.Default (Default (..))
 import           Data.Fixed (Fixed, HasResolution)
 import qualified Data.HashSet as HS
-import           Data.List (partition, tail)
+import           Data.List (partition)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 import qualified Data.Semigroup as S
@@ -330,12 +330,12 @@ plainInputPicker (PendingAddresses pendingAddrs) utxo _outputs moneyToSpent =
         if moneyLeft == mkCoin 0
             then return inps
             else do
-            mNextOut <- head <$> use ipsAvailableOutputs
+            mNextOut <- safeHead <$> use ipsAvailableOutputs
             case mNextOut of
                 Nothing -> throwError $ NotEnoughMoney moneyLeft
                 Just inp@(_, (TxOutAux (TxOut {..}))) -> do
                     ipsMoneyLeft .= unsafeSubCoin moneyLeft (min txOutValue moneyLeft)
-                    ipsAvailableOutputs %= tail
+                    ipsAvailableOutputs %= drop 1
                     pickInputs (inp : inps)
 
 -------------------------------------------------------------------------
@@ -377,7 +377,7 @@ groupedInputPicker utxo outputs moneyToSpent =
     evalStateT (pickInputs []) (GroupedInputPickerState moneyToSpent sortedGroups)
   where
     gUtxo = groupUtxo utxo
-    outputAddrsSet = foldl' (flip HS.insert) mempty $
+    outputAddrsSet = foldl' HS.insert mempty $
         map (txOutAddress . toaOut) outputs
     isOutputAddr = flip HS.member outputAddrsSet
     sortedGroups = sortOn (Down . ugTotalMoney) $
@@ -391,14 +391,14 @@ groupedInputPicker utxo outputs moneyToSpent =
         if moneyLeft == mkCoin 0
             then return inps
             else do
-                mNextOutGroup <- head <$> use gipsAvailableOutputGroups
+                mNextOutGroup <- safeHead <$> use gipsAvailableOutputGroups
                 case mNextOutGroup of
                     Nothing -> if disallowedMoney >= coinToInteger moneyLeft
                         then throwError $ NotEnoughAllowedMoney moneyLeft
                         else throwError $ NotEnoughMoney moneyLeft
                     Just UtxoGroup {..} -> do
                         gipsMoneyLeft .= unsafeSubCoin moneyLeft (min ugTotalMoney moneyLeft)
-                        gipsAvailableOutputGroups %= tail
+                        gipsAvailableOutputGroups %= drop 1
                         pickInputs (toList ugUtxo ++ inps)
 
 -------------------------------------------------------------------------
@@ -547,12 +547,12 @@ createMOfNTx
     -> TxOutputs
     -> AddrData m
     -> m (Either TxError TxWithSpendings)
-createMOfNTx pendingTx utxo keys outputs addrData =
+createMOfNTx pendingTx utxo sKeys outputs addrData =
     createGenericTxSingle pendingTx (makeMOfNTx validator sks)
     OptimizeForSecurity utxo outputs addrData
   where
-    ids = map fst keys
-    sks = map snd keys
+    ids = map fst sKeys
+    sks = map snd sKeys
     m = length $ filter isJust sks
     validator = multisigValidator m ids
 

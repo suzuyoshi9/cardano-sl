@@ -41,6 +41,7 @@ import qualified Data.Vector as V
 import           Formatting (build, int, sformat, (%))
 import           Network.Wai (Application)
 import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
+import           Safe (atMay)
 
 import qualified Serokell.Util.Base64 as B64
 import           Servant.Generic (AsServerT, toServant)

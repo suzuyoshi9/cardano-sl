@@ -121,6 +121,7 @@ library
 executable cardano-node-new
   hs-source-dirs:      server
   main-is:             Main.hs
+  other-modules:    Paths_cardano_sl_wallet_new
   ghc-options:         -threaded -rtsopts
                        -Wall
                        -fno-warn-orphans
@@ -211,6 +212,7 @@ test-suite wallet-new-specs
   ghc-options:      -Wall
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
+  other-modules:    Paths_cardano_sl_wallet_new
   default-language: Haskell2010
   hs-source-dirs:   server test
 
@@ -253,6 +255,7 @@ test-suite wallet-new-specs
 
   if !os(windows)
       build-depends:    QuickCheck
+                      , acid-state
                       , aeson
                       , aeson-pretty
                       , bytestring
