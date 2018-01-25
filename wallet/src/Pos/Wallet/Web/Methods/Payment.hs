@@ -11,8 +11,6 @@ module Pos.Wallet.Web.Methods.Payment
 
 import           Universum
 
-import           Control.Exception.Safe (impureThrow)
-import           Control.Monad.Except (runExcept)
 import qualified Data.Map as M
 import           Data.Time.Units (Second)
 import           Mockable (Concurrently, Delay, Mockable, concurrently, delay)
@@ -26,10 +24,10 @@ import           Pos.Client.Txp.History (TxHistoryEntry (..))
 import           Pos.Client.Txp.Network (prepareMTx)
 import           Pos.Client.Txp.Util (InputSelectionPolicy (..), computeTxFee, runTxCreator)
 import           Pos.Configuration (walletTxCreationDisabled)
-import           Pos.Core (Coin, TxAux (..), TxOut (..), getCurrentTimestamp)
+import           Pos.Core (Coin, TxAux (..), TxOut (..), getCurrentTimestamp, Address)
 import           Pos.Core.Txp (_txOutputs)
 import           Pos.Crypto (PassPhrase, ShouldCheckPassphrase (..), checkPassMatches, hash,
-                             withSafeSignerUnsafe)
+                             withSafeSignerUnsafe, SafeSigner)
 import           Pos.DB (MonadGState)
 import           Pos.Txp (TxFee (..), Utxo)
 import           Pos.Util (eitherToThrow, maybeThrow)
@@ -152,7 +150,7 @@ getMoneySourceUtxo =
     getOwnUtxos
 
 sendMoney
-    :: (MonadWalletTxFull ctx m)
+    :: forall m ctx. (MonadWalletTxFull ctx m)
     => PassPhrase
     -> MoneySource
     -> NonEmpty (CId Addr, Coin)
@@ -176,23 +174,28 @@ sendMoney passphrase moneySource dstDistr policy = do
 
     logDebug "sendMoney: processed addrs"
 
-    let metasAndAdrresses = M.fromList $ zip (toList srcAddrs) (toList addrMetas)
+    let metasAndAddresses = M.fromList $ zip (toList srcAddrs) (toList addrMetas)
     allSecrets <- getSecretKeys
 
-    let getSigner addr = runIdentity $ do
-          let addrMeta =
-                  fromMaybe (error "Corresponding adress meta not found")
-                            (M.lookup addr metasAndAdrresses)
-          case runExcept $ getSKByAddressPure allSecrets (ShouldCheckPassphrase False) passphrase addrMeta of
-              Left err -> impureThrow err
-              Right sk -> withSafeSignerUnsafe sk (pure passphrase) pure
+    let
+        getSigner :: Address -> Either WalletError SafeSigner
+        getSigner addr = do
+          addrMeta <- case M.lookup addr metasAndAddresses of
+              Just a -> Right a
+              Nothing -> Left $
+                  InternalError "Corresponding address meta not found"
+          sk <- getSKByAddressPure allSecrets (ShouldCheckPassphrase False) passphrase addrMeta
+          withSafeSignerUnsafe sk (pure passphrase) pure
+
+        getSigner' :: Address -> m SafeSigner
+        getSigner' = eitherToThrow . getSigner
 
     relatedAccount <- getSomeMoneySourceAccount moneySource
     outputs <- coinDistrToOutputs dstDistr
     pendingAddrs <- getPendingAddresses policy
     th <- rewrapTxError "Cannot send transaction" $ do
         (txAux, inpTxOuts') <-
-            prepareMTx getSigner pendingAddrs policy srcAddrs outputs (relatedAccount, passphrase)
+            prepareMTx getSigner' pendingAddrs policy srcAddrs outputs (relatedAccount, passphrase)
 
         ts <- Just <$> getCurrentTimestamp
         let tx = taTx txAux

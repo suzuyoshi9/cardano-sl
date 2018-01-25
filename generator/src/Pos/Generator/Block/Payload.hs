@@ -10,6 +10,7 @@ module Pos.Generator.Block.Payload
 
 import           Universum
 
+import           Control.Exception.Safe (throwString)
 import           Control.Lens (at, uses, (%=), (.=))
 import           Control.Lens.TH (makeLenses)
 import           Control.Monad.Random.Class (MonadRandom (..))
@@ -212,9 +213,11 @@ genTxPayload = do
         -- Form a transaction
         let inputSKs = map addrToSk inputAddrs
             signers = HM.fromList $ zip inputAddrs (map fakeSigner inputSKs)
-            getSigner addr =
-                fromMaybe (error "Requested signer for unknown address") $ HM.lookup addr signers
-            makeTestTx = makeMPubKeyTxAddrs getSigner
+            getSigner addr = case HM.lookup addr signers of
+                Just a -> Right a
+                Nothing -> Left "Requested signer for unknown address"
+            makeTestTx i o = either throwString return $
+                makeMPubKeyTxAddrs getSigner i o
             groupedInputs = OptimizeForSecurity
 
         eTx <- lift . lift $

@@ -12,7 +12,7 @@ module Command.Tx
 import           Universum
 
 import           Control.Concurrent.STM.TQueue (newTQueue, tryReadTQueue, writeTQueue)
-import           Control.Exception.Safe (Exception (..), try)
+import           Control.Exception.Safe (Exception (..), try, throwString)
 import           Control.Monad.Except (runExceptT)
 import qualified Data.ByteString as BS
 import           Data.Default (def)
@@ -196,7 +196,9 @@ send sendActions idx outputs = do
     let allSecrets = hdSecrets ++ [skey, skey]
     etx <- withSafeSigners allSecrets (pure emptyPassphrase) $ \signers -> runExceptT @AuxxException $ do
         let addrSig = HM.fromList $ zip allAddresses signers
-        let getSigner = fromMaybe (error "Couldn't get SafeSigner") . flip HM.lookup addrSig
+        let getSigner addr =
+                maybe (throwString "Couldn't get SafeSigner") return $
+                HM.lookup addr addrSig
         -- BE CAREFUL: We create remain address using our pk, wallet doesn't show such addresses
         (txAux,_) <- lift $ prepareMTx getSigner mempty def (NE.fromList allAddresses) (map TxOutAux outputs) curPk
         txAux <$ (ExceptT $ try $ submitTxRaw (immediateConcurrentConversations sendActions ccPeers) txAux)

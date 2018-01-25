@@ -9,6 +9,7 @@ module Test.Pos.Client.Txp.UtilSpec
 
 import           Universum
 
+import           Control.Exception.Safe (throwString)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
@@ -110,7 +111,7 @@ testCreateMTx
     :: HasTxpConfigurations
     => CreateMTxParams
     -> TxpTestProperty (Either TxError (TxAux, NonEmpty TxOut))
-testCreateMTx CreateMTxParams{..} =
+testCreateMTx CreateMTxParams{..} = lift $
     createMTx mempty cmpInputSelectionPolicy cmpUtxo (getSignerFromList cmpSigners)
     cmpOutputs cmpAddrData
 
@@ -200,7 +201,7 @@ redemptionSpec = do
 txWithRedeemOutputFailsSpec :: HasTxpConfigurations => InputSelectionPolicy -> TxpTestProperty ()
 txWithRedeemOutputFailsSpec inputSelectionPolicy = do
     forAllM genParams $ \(CreateMTxParams {..}) -> do
-        txOrError <-
+        txOrError <- lift $
             createMTx mempty cmpInputSelectionPolicy cmpUtxo
                       (getSignerFromList cmpSigners)
                       cmpOutputs cmpAddrData
@@ -310,9 +311,10 @@ data CreateRedemptionTxParams = CreateRedemptionTxParams
     , crpOutputs :: !TxOutputs
     } deriving Show
 
-getSignerFromList :: NonEmpty (SafeSigner, Address) -> (Address -> SafeSigner)
+getSignerFromList :: MonadThrow m => NonEmpty (SafeSigner, Address) -> (Address -> m SafeSigner)
 getSignerFromList (HM.fromList . map swap . toList -> hm) =
-    \addr -> fromMaybe (error "Requested signer for unknown address") $ HM.lookup addr hm
+    \addr -> maybe (throwString "Requested signer for unknown address") return $
+             HM.lookup addr hm
 
 makeManyUtxoTo1Params :: InputSelectionPolicy -> Int -> Integer -> Integer -> Gen CreateMTxParams
 makeManyUtxoTo1Params inputSelectionPolicy numFrom amountEachFrom amountTo = do
