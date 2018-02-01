@@ -11,9 +11,8 @@ module Lib where
 import           Universum
 
 import           CLI
-import           Types (UberMonad)
-import           Data.Function                        (id)
 import qualified Data.ByteString                      as B
+import           Data.Function                        (id)
 import           Data.String.Conv
 import           Data.Time
 import           Dhall
@@ -30,8 +29,10 @@ import           Pos.Wallet.Web.ClientTypes
 import           Pos.Wallet.Web.ClientTypes.Instances ()
 import           Pos.Wallet.Web.Methods.Logic
 import           Pos.Wallet.Web.Methods.Restore
+import           Pos.Wallet.Web.State                 (askWalletSnapshot)
 import           Rendering
 import           Text.Printf
+import           Types                                (UberMonad)
 
 --
 -- Types
@@ -181,6 +182,6 @@ genAccount CWallet{..} accountNum = do
 -- | Creates a new 'CAddress'.
 genAddress :: AccountId -> UberMonad CAddress
 genAddress cid = do
+    ws <- askWalletSnapshot
     let (walletId, addrNum) = (aiWId cid, aiIndex cid)
-    newAddress RandomSeed mempty (AccountId walletId addrNum)
-
+    newAddress ws RandomSeed mempty (AccountId walletId addrNum)
