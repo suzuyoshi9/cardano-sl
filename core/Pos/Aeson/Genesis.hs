@@ -58,8 +58,8 @@ instance FromJSON GenesisVssCertificatesMap where
 
 instance FromJSON GenesisDelegation where
     parseJSON = parseJSON >=> \v -> do
-        (sidToProxies :: HashMap StakeholderId ProxySKHeavy) <- mapM parseJSON v
-        toAesonError $ recreateGenesisDelegation sidToProxies
+        (sidToPSKs :: HashMap StakeholderId ProxySKHeavy) <- mapM parseJSON v
+        toAesonError $ recreateGenesisDelegation sidToPSKs
 
 deriveFromJSON defaultOptions ''FakeAvvmOptions
 deriveFromJSON defaultOptions ''TestnetBalanceOptions

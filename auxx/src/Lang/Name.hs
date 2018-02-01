@@ -1,5 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
-
 module Lang.Name
        ( Letter(getLetter)
        , unsafeMkLetter
@@ -18,6 +16,7 @@ import           Data.List.Split (splitWhen)
 import qualified Data.Text.Buildable as Buildable
 import           Test.QuickCheck.Arbitrary.Generic (Arbitrary (..), genericArbitrary, genericShrink)
 import           Test.QuickCheck.Gen (suchThat)
+import           Test.QuickCheck.Instances ()
 
 -- | Invariant: @isAlpha . getLetter = const True@
 newtype Letter = Letter { getLetter :: Char }
@@ -30,16 +29,10 @@ instance Arbitrary Letter where
     arbitrary = Letter <$> arbitrary `suchThat` isAlpha
 
 newtype Name = Name (NonEmpty (NonEmpty Letter))
-    deriving stock   (Eq, Ord)
-    deriving newtype (Generic)
+    deriving (Eq, Ord, Generic)
 
 unsafeMkName :: [String] -> Name
 unsafeMkName = coerce . fmap NonEmpty.fromList . NonEmpty.fromList
-
--- TODO: dunno where the instance is and where it's should be
-instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
 
 instance Arbitrary Name where
     arbitrary = genericArbitrary
